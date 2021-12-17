@@ -1,2 +1,0 @@
-# Walls
-Jogo Hyper Casual
