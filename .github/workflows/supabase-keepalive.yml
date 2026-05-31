@@ -1,0 +1,50 @@
+name: Supabase Keepalive
+
+on:
+  schedule:
+    - cron: "0 9 * * 1,4"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
+      RANKING_TABLE: wall_rush_scores
+    steps:
+      - name: Validar secrets obrigatorios
+        shell: bash
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "Secret SUPABASE_URL nao configurado."
+            exit 1
+          fi
+          if [ -z "$SUPABASE_API_KEY" ]; then
+            echo "Secret SUPABASE_API_KEY nao configurado."
+            exit 1
+          fi
+
+      - name: Ping Supabase ranking table
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          endpoint="${SUPABASE_URL%/}/rest/v1/${RANKING_TABLE}?select=id&limit=1"
+          http_code="$(curl --silent --show-error --output response.json \
+            --write-out "%{http_code}" \
+            --max-time 20 \
+            --header "apikey: ${SUPABASE_API_KEY}" \
+            "$endpoint")"
+
+          echo "HTTP ${http_code}"
+          echo "Endpoint: ${endpoint}"
+
+          if [ "${http_code}" -lt 200 ] || [ "${http_code}" -ge 300 ]; then
+            echo "Resposta inesperada do Supabase:"
+            sed -n '1,40p' response.json || true
+            exit 1
+          fi
+
+          echo "Supabase respondeu com sucesso."

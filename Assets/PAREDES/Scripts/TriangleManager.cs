@@ -16,6 +16,8 @@ public class TriangleManager : MonoBehaviour
 
 
     int NumberOfTriangles;
+    int _reviveCapturedSpawnBudget;
+    GameManager _gameManager;
 
     [Space]
     [Range(0.5f, 2.0f)]
@@ -36,6 +38,7 @@ public class TriangleManager : MonoBehaviour
 
     void Start()
     {
+        _gameManager = GameObject.Find("GameManager").GetComponent<GameManager>();
         NumberOfTriangles = NumberOfTriangles_Start;
 
         Debug.Log("LeftWall.transform.localScale : " + LeftWall.transform.localScale);
@@ -123,10 +126,31 @@ public class TriangleManager : MonoBehaviour
 
     void IncreaseNumberOfTriangles()
     {
-        if (NumberOfTriangles >= NumberOfTriangles_Max) return;
-        NumberOfTriangles = GameObject.Find("GameManager").GetComponent<GameManager>().score / TriangleCountUpScore + 1;
+        if (_gameManager == null)
+            _gameManager = GameObject.Find("GameManager").GetComponent<GameManager>();
+        int fromScore = _gameManager.score / TriangleCountUpScore + 1;
+        fromScore = Mathf.Clamp(fromScore, NumberOfTriangles_Start, NumberOfTriangles_Max);
+        if (NumberOfTriangles >= NumberOfTriangles_Max)
+            return;
+        NumberOfTriangles = Mathf.Max(NumberOfTriangles, fromScore);
     }
 
+    /// <summary>
+    /// Chamado ao morrer: guarda quantos espinhos há por lado para manter após continuar com anúncio.
+    /// </summary>
+    public void PrepareReviveTriangleState()
+    {
+        int lc = LeftWall != null ? LeftWall.transform.childCount : 0;
+        int rc = RightWall != null ? RightWall.transform.childCount : 0;
+        int m = Mathf.Max(lc, rc, NumberOfTriangles);
+        _reviveCapturedSpawnBudget = Mathf.Clamp(m, NumberOfTriangles_Start, NumberOfTriangles_Max);
+    }
 
-
+    /// <summary>
+    /// Após vídeo recompensado: próximos respawns na parede usam a mesma quantidade que no momento da morte.
+    /// </summary>
+    public void ApplyReviveTriangleSpawnBudget()
+    {
+        NumberOfTriangles = _reviveCapturedSpawnBudget;
+    }
 }

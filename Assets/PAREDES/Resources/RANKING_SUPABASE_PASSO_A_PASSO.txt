@@ -1,0 +1,157 @@
+================================================================================
+  WALL RUSH — Ranking online (Supabase + Unity)
+  Eu não consigo entrar na tua conta: segue ESTES passos na ordem.
+================================================================================
+
+PARTE 1 — SUPABASE (no site, no browser)
+----------------------------------------
+
+1) Entra em https://supabase.com e faz login.
+
+2) Abre o TEU projeto (ou cria um novo projeto grátis).
+
+3) No menu à esquerda, clica em "SQL Editor".
+
+4) Clica em "New query".
+
+5) Abre no projeto Unity o ficheiro:
+   Assets/PAREDES/Scripts/wall_rush_scores_supabase.sql
+   Copia TUDO de lá e cola no Supabase.
+
+6) Clica em RUN (ou "Run").
+   Deve aparecer "Success".
+
+7) No menu à esquerda, clica em "Project Settings" (ícone de engrenagem).
+
+8) Clica em "API".
+
+9) Anota estes dois valores (vais precisar no Unity):
+   - Project URL  → parece https://xxxx.supabase.co
+   - anon public  OU  publishable key  → começa por eyJ... ou sb_publishable_...
+
+   NÃO uses a chave "service_role" nem "secret" no jogo.
+
+
+PARTE 2 — UNITY (no teu computador)
+------------------------------------
+
+1) Abre o projeto Wall Rush no Unity.
+
+2) No Project, abre a pasta:
+   Assets/PAREDES/Resources/
+
+3) Clica no ficheiro:
+   WallsLeaderboardRemoteConfig
+   (Se não existir: menu Assets → Create → Wall Rush → Leaderboard Remoto (Supabase).)
+
+4) No Inspector, preenche SÓ estes campos:
+   - Supabase Url     → cola o Project URL (sem espaços no fim)
+   - Supabase Anon Key → cola a chave publicável / anon
+   - Table Name       → wall_rush_scores   (se usaste o SQL do projeto)
+   - Player Name Column → display_name     (se usaste o SQL do projeto)
+
+   SE na tua base a coluna se chama "player_name" em vez de "display_name",
+   então em Player Name Column escreve: player_name
+
+5) Guarda o projeto (Ctrl+S).
+
+6) Abre a cena do MENU e carrega Play.
+
+7) No jogo:
+   - Definições → escreve o teu APELIDO
+   - Joga e tenta BATER o teu MELHOR SCORE (só aí envia para o servidor)
+   - Ranking → deve carregar a lista do Supabase
+
+
+SE DER "Ranking online não configurado"
+---------------------------------------
+O Unity não encontrou o asset ou os campos URL/chave estão vazios.
+Verifica o passo 3–4 da Parte 2.
+
+
+SE DER "A chave pública do Supabase foi recusada"
+-------------------------------------------------
+- Abre Supabase → Project Settings → API
+- Copia de novo a publishable key (`sb_publishable_...`) ou a anon key antiga (`eyJ...`)
+- Cola no asset `WallsLeaderboardRemoteConfig`
+- NÃO uses `service_role` nem `sb_secret`
+
+
+SE DER "O Supabase bloqueou a leitura do ranking"
+-------------------------------------------------
+- Volta a correr o ficheiro `wall_rush_scores_supabase.sql`
+- Confirma que a tabela `wall_rush_scores` existe
+- Confirma que o RLS está ativo e que as policies de SELECT e INSERT foram criadas
+
+
+SE DER "A tabela do ranking não foi encontrada"
+-----------------------------------------------
+- Confirma no asset:
+  - Table Name = `wall_rush_scores`
+  - Player Name Column = `display_name`
+- Se no teu projeto usaste outro nome de coluna, o valor no asset tem de coincidir exatamente
+
+
+SE DER "O projeto do ranking parece estar pausado"
+--------------------------------------------------
+Isto é comum em projetos grátis do Supabase sem uso durante vários dias.
+
+Faz assim:
+- Entra no dashboard do Supabase
+- Abre o projeto
+- Se aparecer como paused / inactive, reativa-o
+- Espera 1–3 minutos
+- Volta ao jogo e abre Ranking outra vez
+
+Para reduzir isto no futuro:
+- Faz um pedido simples ao Supabase pelo menos 1x a cada poucos dias
+- Pode ser com GitHub Actions, cron-job.org ou outro scheduler
+- Basta um GET leve, por exemplo:
+  `https://TEU-PROJETO.supabase.co/rest/v1/wall_rush_scores?select=id&limit=1`
+  com header `apikey`
+
+No repositório já ficou preparado um workflow GitHub Actions:
+`.github/workflows/supabase-keepalive.yml`
+
+Para o ativar:
+1) Abre o repositório no GitHub
+2) Vai a Settings → Secrets and variables → Actions
+3) Cria estes 2 secrets:
+   - `SUPABASE_URL` = `https://TEU-PROJETO.supabase.co`
+   - `SUPABASE_API_KEY` = a tua `sb_publishable_...` ou `anon key`
+4) Vai ao separador Actions
+5) Abre o workflow `Supabase Keepalive`
+6) Clica em `Run workflow` para testar manualmente
+
+Se ficar verde:
+- o workflow passa a correr automaticamente 2x por semana
+- isso ajuda a evitar que o projeto grátis entre em pausa
+
+Se falhar:
+- confirma a URL
+- confirma a key pública
+- confirma que a tabela `wall_rush_scores` existe
+- confirma que a policy de SELECT está criada
+
+
+SE APARECER "Mostrando a última cópia guardada do ranking"
+----------------------------------------------------------
+O jogo conseguiu abrir um ranking antigo guardado no aparelho, mas não conseguiu atualizar agora.
+
+Isto é melhor do que ficar tudo vazio, mas significa que tens de verificar:
+- internet do aparelho
+- estado do projeto no Supabase
+- chave pública
+- tabela e policies
+
+
+SE A LISTA FICAR VAZIA
+----------------------
+- A tabela pode estar vazia: joga até superares o teu recorde.
+- Ou RLS/políticas erradas: volta a correr o SQL do ficheiro .sql
+
+
+Dúvidas: o código pede até 300 linhas ao Supabase e no jogo mostra o TOP 10,
+com UMA melhor pontuação por APELIDO (nome).
+
+================================================================================

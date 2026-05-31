@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,6 +14,7 @@ public class Player : MonoBehaviour
 
     GameManager GameManagerScript;
     Rigidbody2D rb;
+    Vector3 _spawnPosition;
 
 
     [HideInInspector]
@@ -43,19 +44,36 @@ public class Player : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
 
         GameManagerScript = GameObject.Find("GameManager").GetComponent<GameManager>();
+        _spawnPosition = transform.position;
 
-        hueValue = Random.Range(0, 10) / 10.0f;
+        hueValue = WallsGameColors.RandomHueStep();
 
         SetBackgroundColor();
         StopPlayer();
     }
 
 
+    void LateUpdate()
+    {
+        if (source == null)
+            return;
+        var dir = WallsAudioDirector.Instance;
+        if (dir != null && dir.HasMixer)
+            source.volume = 1f;
+        else if (dir != null)
+            source.volume = dir.GetSfxLinear();
+        else
+            source.volume = 1f;
+    }
+
     void Update()
     {
         rb.gravityScale = Gravity;
 
         if (isDead) return;
+
+        if (WallsPauseMenu.BlockGameplayInput)
+            return;
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -70,13 +88,13 @@ public class Player : MonoBehaviour
                 Destroy(effectObj, 0.5f);
                 source.PlayOneShot(jumpClip, 1);
 
-                if (rb.velocity.x > 0)
+                if (rb.linearVelocity.x > 0)
                 {
-                    rb.velocity = new Vector2(JumpSpeed_X, JumpSpeed_Y);
+                    rb.linearVelocity = new Vector2(JumpSpeed_X, JumpSpeed_Y);
                 }
                 else
                 {
-                    rb.velocity = new Vector2(-JumpSpeed_X, JumpSpeed_Y);
+                    rb.linearVelocity = new Vector2(-JumpSpeed_X, JumpSpeed_Y);
                 }
             }
 
@@ -120,7 +138,8 @@ public class Player : MonoBehaviour
 
             GameManagerScript.Gameover();
 
-            StartCoroutine(cameraShake.Shake(0.2f, 0.3f));
+            if (WallsGamePrefs.ScreenShakeEnabled && cameraShake != null)
+                StartCoroutine(cameraShake.Shake(0.2f, 0.3f));
 
             StopPlayer();
 
@@ -130,7 +149,7 @@ public class Player : MonoBehaviour
 
     public void StartPlayer()
     {
-        rb.velocity = new Vector2(-1, 0);
+        rb.linearVelocity = new Vector2(-1, 0);
         rb.isKinematic = false;
         // isStarted = true;
     }
@@ -138,10 +157,20 @@ public class Player : MonoBehaviour
 
     void StopPlayer()
     {
-        rb.velocity = new Vector2(0, 0);
+        rb.linearVelocity = new Vector2(0, 0);
         rb.isKinematic = true;
     }
 
+    /// <summary>
+    /// Após anúncio recompensado: mesma pontuação e espinhos; bola no início à espera do primeiro toque.
+    /// </summary>
+    public void PrepareReviveFromReward()
+    {
+        isDead = false;
+        isFirstTouch = true;
+        transform.position = _spawnPosition;
+        StopPlayer();
+    }
 
     void SetBackgroundColor()
     {
@@ -150,8 +179,12 @@ public class Player : MonoBehaviour
         {
             hueValue = 0;
         }
-        // Camera.main.backgroundColor = Color.HSVToRGB(hueValue, 0.5f, 0.3f);
-        Camera.main.backgroundColor = Color.HSVToRGB(hueValue, 0.6f, 0.8f);
+        var cam = Camera.main;
+        if (cam == null)
+            return;
+        cam.backgroundColor = WallsGameColors.ColorFromHue(hueValue);
+        ThemeManager.ApplyBaseColor(cam.backgroundColor);
+        WallsGamePrefs.LastRunBackground.Save(cam.backgroundColor);
     }
 
 
